@@ -55,15 +55,18 @@ def calculate_similarity(user_input, user_row, openai_api_key):
     location_similarity = 1 / (1 + location_distance)  # Inverse relationship with distance
     similarity_score += location_similarity * 10  # Small weight for location
 
-    # Follower count (Small positive weight)
-    followers_weight = user_row['no_of_followers'] / 5000  # Normalize followers between 0-1
+    # Ensure 'no_of_followers' is a valid number
+    try:
+        followers_weight = int(user_row['no_of_followers']) / 5000  # Convert string to integer
+    except ValueError:
+        followers_weight = 0  # Handle invalid followers count gracefully
     similarity_score += followers_weight * 10  # Small weight for followers
 
     return similarity_score
 
-# Function to recommend top N similar users
-def recommend_users(user_input, df, openai_api_key, top_n=30):
-    recommendations = []
+# Function to calculate and return similarity scores for all users
+def calculate_all_similarities(user_input, df, openai_api_key):
+    similarity_scores = []
 
     # Iterate over each user in the dataset and calculate similarity score
     for _, user_row in df.iterrows():
@@ -72,15 +75,14 @@ def recommend_users(user_input, df, openai_api_key, top_n=30):
 
         try:
             similarity_score = calculate_similarity(user_input, user_row, openai_api_key)
-            recommendations.append((user_row['user_id'], similarity_score))
+            similarity_scores.append((user_row['user_id'], similarity_score))
         except Exception as e:
             print(f"Error calculating similarity for user {user_row['user_id']}: {e}")
 
-    # Sort users by similarity score in descending order and return top N recommendations
-    recommendations.sort(key=lambda x: x[1], reverse=True)
-    top_recommendations = recommendations[:top_n]
+    # Sort users by similarity score in descending order
+    sorted_similarities = sorted(similarity_scores, key=lambda x: x[1], reverse=True)
 
-    return top_recommendations
+    return sorted_similarities
 
 # Example: User input for recommendation
 user_input = {
@@ -95,10 +97,12 @@ user_input = {
 df = pd.read_csv('user.csv')
 
 # OpenAI API key as an argument
-openai_api_key = ""
-# Generate recommendations for the input user
-top_users = recommend_users(user_input, df, openai_api_key=openai_api_key)
+openai_api_key = "your_openai_api_key_here"
 
-# Display top recommended users (user_id, similarity score)
-for user in top_users:
+# Calculate similarities for all users
+all_users_similarities = calculate_all_similarities(user_input, df, openai_api_key)
+
+# Display users from highest to lowest similarity score
+print("Recommended users from highest to lowest similarity score:")
+for user in all_users_similarities:
     print(f"User ID: {user[0]}, Similarity Score: {user[1]:.2f}")
